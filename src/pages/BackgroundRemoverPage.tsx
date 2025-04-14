@@ -9,6 +9,11 @@ import { Slider } from '@/components/ui/slider';
 import { Download, Trash, ImageIcon, Grid2X2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { removeBackground, loadImage } from '@/utils/backgroundRemover';
+import { 
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const BackgroundRemoverPage = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -32,7 +37,7 @@ const BackgroundRemoverPage = () => {
     }
     
     setIsProcessing(true);
-    toast.info('Processing image, this may take a moment...');
+    toast.info('Processing image, this may take a moment...', { duration: 10000 });
     
     try {
       // Load the image
@@ -48,7 +53,7 @@ const BackgroundRemoverPage = () => {
       toast.success('Background removed successfully!');
     } catch (error) {
       console.error('Error:', error);
-      toast.error('Failed to remove background. Please try another image.');
+      toast.error('Failed to remove background. Please try another image or check if your browser supports WebGPU or WebAssembly.');
     } finally {
       setIsProcessing(false);
     }
@@ -95,7 +100,24 @@ const BackgroundRemoverPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="space-y-6 animate-fade-in">
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold">Upload Image</h2>
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-semibold">Upload Image</h2>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm">Requirements</Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-4">
+                    <h3 className="font-medium mb-2">Browser Requirements</h3>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      This feature requires a modern browser that supports either:
+                    </p>
+                    <ul className="text-sm text-muted-foreground list-disc pl-5 space-y-1">
+                      <li>WebGPU (Chrome 113+, Edge 113+, or Safari 17+)</li>
+                      <li>WebAssembly</li>
+                    </ul>
+                  </PopoverContent>
+                </Popover>
+              </div>
               <ImageUploader onImageUpload={handleImageUpload} />
               
               {file && !resultImage && (
