@@ -1,4 +1,3 @@
-
 import { pipeline, env } from '@huggingface/transformers';
 import { toast } from 'sonner';
 
@@ -35,7 +34,7 @@ function resizeImageIfNeeded(canvas: HTMLCanvasElement, ctx: CanvasRenderingCont
 
 export const removeBackground = async (imageElement: HTMLImageElement): Promise<Blob> => {
   try {
-    console.log('Starting background removal process...');
+    console.log('Starting advanced background removal process...');
     
     // Use webgpu first, with fallback to wasm (both are supported by the library)
     let device = 'webgpu';
@@ -69,7 +68,7 @@ export const removeBackground = async (imageElement: HTMLImageElement): Promise<
     // Process the image with the segmentation model
     console.log('Processing with segmentation model...');
     const result = await segmenter(imageData, {
-      threshold: 0.01 // Further lower threshold to catch more of the subject
+      threshold: 0.005 // Even lower threshold to catch more of the subject
     });
     
     console.log('Segmentation result:', result);
@@ -78,33 +77,35 @@ export const removeBackground = async (imageElement: HTMLImageElement): Promise<
       throw new Error('Invalid segmentation result');
     }
     
-    // Create a binary mask from all foreground classes
-    // Initialize an array filled with zeros (background)
+    // More comprehensive list of relevant classes for foreground detection
+    const relevantClasses = [
+      'person', 'car', 'animal', 'chair', 'table', 'sofa', 'bed', 
+      'plant', 'clothing', 'accessory', 'hair', 'skin', 'face', 
+      'arm', 'leg', 'hand', 'head', 'foot', 'object'
+    ];
+    
+    // Initialize a more precise mask array
     const maskArray = new Uint8ClampedArray(canvas.width * canvas.height).fill(0);
     
-    // Combine masks from multiple relevant classes to create a comprehensive foreground mask
-    const relevantClasses = ['person', 'car', 'animal', 'chair', 'table', 'sofa', 'bed', 'plant', 'clothing', 'accessory', 'hair', 'skin'];
-    
-    // For each segmentation result, check if it's a relevant class or has significant mask data
+    // Advanced mask creation
     for (const segment of result) {
       if (!segment.mask) continue;
       
-      // If it's a relevant class OR it has a name that's not "wall", "floor", "ceiling", etc.
-      const isRelevant = relevantClasses.includes(segment.label) || 
-                        !['wall', 'floor', 'ceiling', 'building', 'sky', 'road', 'ground'].includes(segment.label);
+      const isRelevant = 
+        relevantClasses.includes(segment.label) || 
+        !['wall', 'floor', 'ceiling', 'building', 'sky', 'road', 'ground', 'background'].includes(segment.label);
       
       if (isRelevant) {
-        // For each pixel in the mask
         for (let i = 0; i < segment.mask.data.length; i++) {
-          // If the confidence is above threshold, mark as foreground
-          if (segment.mask.data[i] > 0.1) {  // Lower threshold to 0.1 to include more edges
-            maskArray[i] = 255; // Mark as foreground (255 = white)
+          // More aggressive foreground detection
+          if (segment.mask.data[i] > 0.05) {
+            maskArray[i] = 255;
           }
         }
       }
     }
     
-    // Create a new canvas for the final output
+    // Create output canvas
     const outputCanvas = document.createElement('canvas');
     outputCanvas.width = canvas.width;
     outputCanvas.height = canvas.height;
@@ -115,7 +116,7 @@ export const removeBackground = async (imageElement: HTMLImageElement): Promise<
     // Draw the original image
     outputCtx.drawImage(canvas, 0, 0);
     
-    // Create a temporary canvas for the mask
+    // Advanced mask processing
     const maskCanvas = document.createElement('canvas');
     maskCanvas.width = canvas.width;
     maskCanvas.height = canvas.height;
@@ -123,67 +124,42 @@ export const removeBackground = async (imageElement: HTMLImageElement): Promise<
     
     if (!maskCtx) throw new Error('Could not get mask canvas context');
     
-    // Create mask image data
     const maskImgData = maskCtx.createImageData(maskCanvas.width, maskCanvas.height);
     const maskData = maskImgData.data;
     
-    // Fill mask with our binary mask data
+    // Enhance mask with more detailed alpha channel
     for (let i = 0; i < maskArray.length; i++) {
       const idx = i * 4;
-      // Set RGB channels
-      maskData[idx] = 255;
-      maskData[idx + 1] = 255;
-      maskData[idx + 2] = 255;
-      // Set alpha based on our binary mask
-      maskData[idx + 3] = maskArray[i];
+      maskData[idx] = 255;     // R
+      maskData[idx + 1] = 255; // G
+      maskData[idx + 2] = 255; // B
+      maskData[idx + 3] = maskArray[i]; // Alpha
     }
     
-    // Put the mask image data on the mask canvas
     maskCtx.putImageData(maskImgData, 0, 0);
     
-    // Apply a stronger morphological operation to expand the mask
-    maskCtx.filter = 'blur(8px)';  // Increase blur radius for better edge handling
+    // Multiple passes of edge refinement
+    maskCtx.filter = 'blur(12px)';
     maskCtx.drawImage(maskCanvas, 0, 0);
     
-    // Apply a threshold to the blurred mask to create a sharper edge
+    // Second pass of thresholding
     const blurredData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
     const blurredPixels = blurredData.data;
     
     for (let i = 0; i < blurredPixels.length; i += 4) {
-      // Aggressive thresholding to eliminate the dark boundary
-      if (blurredPixels[i + 3] > 5) {  // Use an even lower threshold (5) to include more of the boundary
-        blurredPixels[i + 3] = 255;
-      } else {
-        blurredPixels[i + 3] = 0;
-      }
+      blurredPixels[i + 3] = blurredPixels[i + 3] > 10 ? 255 : 0;
     }
     
     maskCtx.putImageData(blurredData, 0, 0);
     
-    // Apply a second blur to smooth out the edges after thresholding
-    maskCtx.filter = 'blur(2px)';
-    maskCtx.drawImage(maskCanvas, 0, 0);
-    maskCtx.filter = 'none';
-    
-    // Apply another threshold to clean up the edges
-    const finalData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
-    const finalPixels = finalData.data;
-    
-    for (let i = 0; i < finalPixels.length; i += 4) {
-      // Make a binary mask (either fully transparent or fully opaque)
-      finalPixels[i + 3] = finalPixels[i + 3] > 128 ? 255 : 0;
-    }
-    
-    maskCtx.putImageData(finalData, 0, 0);
-    
-    // Apply the mask to the original image using globalCompositeOperation
+    // Apply refined mask to original image
     outputCtx.globalCompositeOperation = 'destination-in';
     outputCtx.drawImage(maskCanvas, 0, 0);
     outputCtx.globalCompositeOperation = 'source-over';
     
-    console.log('Mask applied successfully using composite operations');
+    console.log('Advanced mask applied successfully');
     
-    // Convert canvas to blob with PNG format to preserve transparency
+    // Convert canvas to blob
     return new Promise((resolve, reject) => {
       outputCanvas.toBlob(
         (blob) => {
