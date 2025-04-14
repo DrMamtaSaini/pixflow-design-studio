@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import ImageUploader from '@/components/ImageUploader';
@@ -11,13 +10,13 @@ import { Slider } from '@/components/ui/slider';
 import { Download, Trash, Images, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
-// Sample meme templates
+// Sample meme templates - modified to use local URLs or proxy
 const memeTemplates = [
-  { id: 'drake', name: 'Drake', url: 'https://imgflip.com/s/meme/Drake-Hotline-Bling.jpg' },
-  { id: 'distracted', name: 'Distracted Boyfriend', url: 'https://imgflip.com/s/meme/Distracted-Boyfriend.jpg' },
-  { id: 'button', name: 'Two Buttons', url: 'https://imgflip.com/s/meme/Two-Buttons.jpg' },
-  { id: 'change', name: 'Change My Mind', url: 'https://imgflip.com/s/meme/Change-My-Mind.jpg' },
-  { id: 'doge', name: 'Doge', url: 'https://imgflip.com/s/meme/Doge.jpg' },
+  { id: 'drake', name: 'Drake', url: 'https://i.imgflip.com/30b1gx.jpg', proxyUrl: '/api/proxy-image?url=https://imgflip.com/s/meme/Drake-Hotline-Bling.jpg' },
+  { id: 'distracted', name: 'Distracted Boyfriend', url: 'https://i.imgflip.com/1ur9b0.jpg', proxyUrl: '/api/proxy-image?url=https://imgflip.com/s/meme/Distracted-Boyfriend.jpg' },
+  { id: 'button', name: 'Two Buttons', url: 'https://i.imgflip.com/1g8my4.jpg', proxyUrl: '/api/proxy-image?url=https://imgflip.com/s/meme/Two-Buttons.jpg' },
+  { id: 'change', name: 'Change My Mind', url: 'https://i.imgflip.com/24y43o.jpg', proxyUrl: '/api/proxy-image?url=https://imgflip.com/s/meme/Change-My-Mind.jpg' },
+  { id: 'doge', name: 'Doge', url: 'https://i.imgflip.com/4t0m5.jpg', proxyUrl: '/api/proxy-image?url=https://imgflip.com/s/meme/Doge.jpg' },
 ];
 
 const MemeGeneratorPage = () => {
@@ -44,10 +43,11 @@ const MemeGeneratorPage = () => {
       setCustomFile(null);
       setCustomImageUrl(null);
       
-      // Pre-load the image
+      // Pre-load the image with crossOrigin attribute
       if (!imageRef.current) {
         imageRef.current = new Image();
       }
+      imageRef.current.crossOrigin = "anonymous";
       imageRef.current.src = template.url;
     }
   };
@@ -58,10 +58,12 @@ const MemeGeneratorPage = () => {
     setImageUrl(imageUrl);
     setSelectedTemplate(null);
     
-    // Pre-load the image
+    // Custom images from user's device don't need crossOrigin
     if (!imageRef.current) {
       imageRef.current = new Image();
     }
+    // No need for crossOrigin on local files
+    imageRef.current.removeAttribute('crossOrigin');
     imageRef.current.src = imageUrl;
   };
   
@@ -77,8 +79,12 @@ const MemeGeneratorPage = () => {
     
     // Use the current image reference or create a new one
     const img = imageRef.current || new Image();
+    
     if (!imageRef.current) {
-      img.crossOrigin = 'anonymous';
+      // Set crossOrigin for external URLs
+      if (selectedTemplate) {
+        img.crossOrigin = "anonymous";
+      }
       img.src = imageUrl;
       imageRef.current = img;
     }
@@ -134,18 +140,10 @@ const MemeGeneratorPage = () => {
       return;
     }
     
-    // Check if canvas has content
-    const canvas = canvasRef.current;
     try {
-      // Get a sample pixel to check if canvas has content
-      const pixel = canvas.getContext('2d')?.getImageData(1, 1, 1, 1);
-      if (!pixel || !pixel.data[3]) { // Check alpha value
-        toast.error('Please generate a meme first');
-        return;
-      }
-      
-      // Convert canvas to PNG
-      const dataUrl = canvas.toDataURL('image/png');
+      // For the download, we don't need to check pixels
+      // Just convert to dataURL and download
+      const dataUrl = canvasRef.current.toDataURL('image/png');
       
       // Create download link
       const a = document.createElement('a');
@@ -158,7 +156,13 @@ const MemeGeneratorPage = () => {
       toast.success('Meme downloaded successfully!');
     } catch (error) {
       console.error('Download error:', error);
-      toast.error('Failed to download. Please generate a meme first.');
+      
+      // More specific error message for CORS issues
+      if (error instanceof DOMException && error.name === 'SecurityError') {
+        toast.error('Unable to download due to security restrictions. Please try uploading your own image instead of using a template.');
+      } else {
+        toast.error('Failed to download. Please try generating the meme again.');
+      }
     }
   };
   
@@ -230,7 +234,8 @@ const MemeGeneratorPage = () => {
                       <div className="aspect-video relative">
                         <img 
                           src={template.url} 
-                          alt={template.name} 
+                          alt={template.name}
+                          crossOrigin="anonymous"
                           className="object-cover w-full h-full" 
                         />
                       </div>
@@ -239,6 +244,9 @@ const MemeGeneratorPage = () => {
                       </div>
                     </div>
                   ))}
+                </div>
+                <div className="text-sm text-muted-foreground mt-2">
+                  Note: For better download support, upload your own image instead of using templates.
                 </div>
               </TabsContent>
               
