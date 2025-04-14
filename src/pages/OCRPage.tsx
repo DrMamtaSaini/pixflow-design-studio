@@ -94,10 +94,11 @@ const OCRPage = () => {
       await worker.initialize(language);
       
       // Set additional parameters for better handwriting recognition
+      // Using type assertions to satisfy TypeScript
       await worker.setParameters({
-        tessedit_pageseg_mode: '6', // As a string to avoid TS errors
+        tessedit_pageseg_mode: 6, // Use number instead of string
         tessedit_char_whitelist: '',
-        tessedit_ocr_engine_mode: '2', // Use LSTM only
+        tessedit_ocr_engine_mode: 2, // Use number instead of string
         preserve_interword_spaces: '1',
       });
       
