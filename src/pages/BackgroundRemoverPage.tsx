@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Slider } from '@/components/ui/slider';
-import { Download, Trash, ImageIcon, Grid2X2, Loader2 } from 'lucide-react';
+import { Download, Trash, ImageIcon, Grid2X2, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { removeBackground, loadImage } from '@/utils/backgroundRemover';
 import { 
@@ -14,6 +14,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 
 const BackgroundRemoverPage = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -37,7 +42,7 @@ const BackgroundRemoverPage = () => {
     }
     
     setIsProcessing(true);
-    const toastId = toast.loading('Processing image, this may take a moment...', { duration: 60000 });
+    const toastId = toast.loading('Processing image, this may take up to 30 seconds...', { duration: 60000 });
     
     try {
       // Load the image
@@ -98,6 +103,15 @@ const BackgroundRemoverPage = () => {
   return (
     <Layout title="Background Remover" showBackButton>
       <div className="space-y-8">
+        <Alert variant="default" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Background removal uses AI segmentation</AlertTitle>
+          <AlertDescription>
+            For best results, use images with clear subjects and distinct backgrounds. The AI model works better with 
+            common objects like people, animals, and products.
+          </AlertDescription>
+        </Alert>
+        
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="space-y-6 animate-fade-in">
             <div className="space-y-4">
