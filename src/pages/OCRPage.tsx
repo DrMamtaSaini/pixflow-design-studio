@@ -17,7 +17,7 @@ const OCRPage = () => {
   const [file, setFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [extractedText, setExtractedText] = useState<string>('');
-  const [language, setLanguage] = useState<string>('hin');
+  const [language, setLanguage] = useState<string>('eng');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   
   const [enhanceHandwriting, setEnhanceHandwriting] = useState<boolean>(true);
@@ -45,21 +45,51 @@ const OCRPage = () => {
         canvas.width = img.width;
         canvas.height = img.height;
         
+        // Draw original image
         ctx.drawImage(img, 0, 0);
         
+        // Get image data
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imageData.data;
         
-        for (let i = 0; i < data.length; i += 4) {
-          const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-          const newVal = avg > 150 ? 255 : 0;
-          
-          data[i] = newVal;
-          data[i + 1] = newVal;
-          data[i + 2] = newVal;
+        // Apply adaptive thresholding - better for handwritten text
+        const blockSize = 11; // Must be odd
+        const C = 5; // Constant subtracted from mean
+        
+        for (let y = 0; y < canvas.height; y++) {
+          for (let x = 0; x < canvas.width; x++) {
+            // Calculate local mean
+            let sum = 0;
+            let count = 0;
+            
+            for (let ky = Math.max(0, y - Math.floor(blockSize/2)); 
+                 ky <= Math.min(canvas.height - 1, y + Math.floor(blockSize/2)); 
+                 ky++) {
+              for (let kx = Math.max(0, x - Math.floor(blockSize/2)); 
+                   kx <= Math.min(canvas.width - 1, x + Math.floor(blockSize/2)); 
+                   kx++) {
+                const idx = (ky * canvas.width + kx) * 4;
+                sum += (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+                count++;
+              }
+            }
+            
+            const mean = sum / count;
+            const idx = (y * canvas.width + x) * 4;
+            const pixelValue = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+            
+            // Apply threshold: if pixel is less than mean - C, it's foreground (0), otherwise background (255)
+            const newValue = pixelValue < (mean - C) ? 0 : 255;
+            
+            data[idx] = newValue;
+            data[idx + 1] = newValue;
+            data[idx + 2] = newValue;
+          }
         }
         
+        // Put processed image back on canvas
         ctx.putImageData(imageData, 0, 0);
+        
         resolve(canvas.toDataURL('image/png'));
       };
       
@@ -86,9 +116,9 @@ const OCRPage = () => {
       await worker.loadLanguage(language);
       await worker.initialize(language);
       
-      // Update parameters to only use officially supported properties
+      // Update parameters to optimize for handwritten text
       await worker.setParameters({
-        tessedit_pageseg_mode: PSM.AUTO,
+        tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
         tessedit_char_whitelist: '',
         preserve_interword_spaces: '1',
       });
