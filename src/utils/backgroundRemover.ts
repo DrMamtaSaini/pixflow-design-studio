@@ -1,4 +1,5 @@
 import { pipeline, env } from '@huggingface/transformers';
+import { toast } from 'sonner';
 
 // Configure transformers.js to always download models
 env.allowLocalModels = false;
@@ -34,8 +35,9 @@ function resizeImageIfNeeded(canvas: HTMLCanvasElement, ctx: CanvasRenderingCont
 export const removeBackground = async (imageElement: HTMLImageElement): Promise<Blob> => {
   try {
     console.log('Starting background removal process...');
+    // Always use 'cpu' as fallback, but allow WebGPU if available
     const segmenter = await pipeline('image-segmentation', 'Xenova/segformer-b0-finetuned-ade-512-512', {
-      device: 'cpu', // Use 'webgpu' if available for better performance
+      device: 'cpu', // More compatible than 'webgpu'
     });
     
     // Convert HTMLImageElement to canvas
@@ -82,7 +84,13 @@ export const removeBackground = async (imageElement: HTMLImageElement): Promise<
     const data = outputImageData.data;
     
     // Apply inverted mask to alpha channel
-    for (let i = 0; i < result[0].mask.data.length; i++) {
+    const maskLength = result[0].mask.data.length;
+    const dataLength = data.length / 4; // RGBA pixels
+    
+    // Make sure we don't exceed array bounds
+    const minLength = Math.min(maskLength, dataLength);
+    
+    for (let i = 0; i < minLength; i++) {
       // Invert the mask value (1 - value) to keep the subject instead of the background
       const alpha = Math.round((1 - result[0].mask.data[i]) * 255);
       data[i * 4 + 3] = alpha;
@@ -108,6 +116,7 @@ export const removeBackground = async (imageElement: HTMLImageElement): Promise<
     });
   } catch (error) {
     console.error('Error removing background:', error);
+    toast.error('Failed to remove background. Please try a different image or try again later.');
     throw error;
   }
 };

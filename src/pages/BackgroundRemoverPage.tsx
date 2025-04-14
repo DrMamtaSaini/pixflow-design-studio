@@ -32,6 +32,7 @@ const BackgroundRemoverPage = () => {
     }
     
     setIsProcessing(true);
+    toast.info('Processing image, this may take a moment...');
     
     try {
       // Load the image
