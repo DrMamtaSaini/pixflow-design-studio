@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import ImageUploader from '@/components/ImageUploader';
@@ -6,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Slider } from '@/components/ui/slider';
-import { Download, Trash, ImageIcon, Grid2X2, Loader2, AlertCircle } from 'lucide-react';
+import { Download, Trash, ImageIcon, Grid2X2, Loader2, AlertCircle, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { removeBackground, loadImage } from '@/utils/backgroundRemover';
 import { 
@@ -45,13 +44,8 @@ const BackgroundRemoverPage = () => {
     const toastId = toast.loading('Processing image, this may take up to 30 seconds...', { duration: 60000 });
     
     try {
-      // Load the image
       const image = await loadImage(file);
-      
-      // Process the image to remove background
       const processedImageBlob = await removeBackground(image);
-      
-      // Create URL for the processed image
       const processedImageUrl = URL.createObjectURL(processedImageBlob);
       setResultImage(processedImageUrl);
       
@@ -113,6 +107,17 @@ const BackgroundRemoverPage = () => {
           </AlertDescription>
         </Alert>
         
+        {resultImage && (
+          <Alert variant="default" className="mb-6 bg-green-50 border-green-200">
+            <Info className="h-4 w-4 text-green-600" />
+            <AlertTitle className="text-green-700">If you see any dark edges around the subject</AlertTitle>
+            <AlertDescription className="text-green-600">
+              Try clicking the "Remove Background" button again. Each attempt may produce slightly different results as the AI 
+              processing adapts to the specific image characteristics.
+            </AlertDescription>
+          </Alert>
+        )}
+        
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="space-y-6 animate-fade-in">
             <div className="space-y-4">
@@ -137,9 +142,12 @@ const BackgroundRemoverPage = () => {
                   </PopoverContent>
                 </Popover>
               </div>
-              <ImageUploader onImageUpload={handleImageUpload} />
+              <ImageUploader 
+                onImageUpload={handleImageUpload} 
+                dropzoneText="Upload an image with a clear subject to remove the background"
+              />
               
-              {file && !resultImage && (
+              {file && (
                 <Button 
                   onClick={handleRemoveBackground} 
                   disabled={isProcessing}
