@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Copy, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import { createWorker } from 'tesseract.js';
 
 const OCRPage = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -21,25 +22,28 @@ const OCRPage = () => {
     setExtractedText('');
   };
   
-  const handleExtractText = () => {
-    if (!file) return;
+  const handleExtractText = async () => {
+    if (!file || !imageUrl) {
+      toast.error('Please upload an image first');
+      return;
+    }
     
     setIsProcessing(true);
     
-    // Mock OCR processing delay
-    setTimeout(() => {
-      // For demo purposes, we're just setting some sample text
-      // In a real implementation, this would use an OCR API or library
-      const sampleTexts: Record<string, string> = {
-        'eng': "This is a sample extracted text from your image. In a real application, this would use OCR technology to extract actual text from the uploaded image.",
-        'hin': "यह आपकी छवि से निकाला गया एक नमूना पाठ है। एक वास्तविक अनुप्रयोग में, यह अपलोड की गई छवि से वास्तविक पाठ निकालने के लिए OCR तकनीक का उपयोग करेगा।",
-        'spa': "Este es un texto de muestra extraído de su imagen. En una aplicación real, esto usaría tecnología OCR para extraer el texto real de la imagen cargada.",
-      };
+    try {
+      const worker = await createWorker(language);
       
-      setExtractedText(sampleTexts[language] || sampleTexts.eng);
-      setIsProcessing(false);
+      const result = await worker.recognize(imageUrl);
+      setExtractedText(result.data.text);
+      
+      await worker.terminate();
       toast.success('Text extracted successfully!');
-    }, 1500);
+    } catch (error) {
+      console.error('OCR Error:', error);
+      toast.error('Failed to extract text. Please try another image.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
   
   const handleCopyText = () => {

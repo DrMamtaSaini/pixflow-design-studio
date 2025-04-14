@@ -8,6 +8,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Slider } from '@/components/ui/slider';
 import { Download, Trash, ImageIcon, Grid2X2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { removeBackground, loadImage } from '@/utils/backgroundRemover';
 
 const BackgroundRemoverPage = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -24,19 +25,32 @@ const BackgroundRemoverPage = () => {
     setResultImage(null);
   };
   
-  const handleRemoveBackground = () => {
-    if (!file) return;
+  const handleRemoveBackground = async () => {
+    if (!file || !imageUrl) {
+      toast.error('Please upload an image first');
+      return;
+    }
     
     setIsProcessing(true);
     
-    // Mock background removal processing delay
-    setTimeout(() => {
-      // For demo purposes, we're just using the same image as result
-      // In a real implementation, this would use an AI-based background removal API or library
-      setResultImage(imageUrl);
-      setIsProcessing(false);
+    try {
+      // Load the image
+      const image = await loadImage(file);
+      
+      // Process the image to remove background
+      const processedImageBlob = await removeBackground(image);
+      
+      // Create URL for the processed image
+      const processedImageUrl = URL.createObjectURL(processedImageBlob);
+      setResultImage(processedImageUrl);
+      
       toast.success('Background removed successfully!');
-    }, 1500);
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Failed to remove background. Please try another image.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
   
   const handleDownload = () => {
@@ -56,6 +70,22 @@ const BackgroundRemoverPage = () => {
     setImageUrl(null);
     setResultImage(null);
     toast.info('Reset successful');
+  };
+  
+  const getBackgroundStyle = () => {
+    if (bgOption === 'transparent') {
+      return {
+        backgroundImage: `linear-gradient(45deg, #e5e7eb 25%, transparent 25%), 
+                           linear-gradient(-45deg, #e5e7eb 25%, transparent 25%), 
+                           linear-gradient(45deg, transparent 75%, #e5e7eb 75%), 
+                           linear-gradient(-45deg, transparent 75%, #e5e7eb 75%)`,
+        backgroundSize: `${checkerboardSize * 2}px ${checkerboardSize * 2}px`,
+        backgroundPosition: `0 0, 0 ${checkerboardSize}px, ${checkerboardSize}px ${-checkerboardSize}px, ${-checkerboardSize}px 0px`
+      };
+    } else if (bgOption === 'color') {
+      return { backgroundColor: bgColor };
+    }
+    return {};
   };
   
   return (
@@ -94,11 +124,7 @@ const BackgroundRemoverPage = () => {
                       <TabsContent value="preview" className="p-0">
                         <div 
                           className="border rounded-lg overflow-hidden"
-                          style={{
-                            background: bgOption === 'transparent' 
-                              ? `repeating-comb-matrix(${checkerboardSize}px, ${checkerboardSize}px, #e5e7eb 1px, transparent 1px, transparent ${checkerboardSize}px)` 
-                              : bgOption === 'color' ? bgColor : 'none'
-                          }}
+                          style={getBackgroundStyle()}
                         >
                           <img 
                             src={resultImage} 

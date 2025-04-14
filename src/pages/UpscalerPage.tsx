@@ -7,6 +7,8 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Download, Trash, ZoomIn } from 'lucide-react';
 import { toast } from 'sonner';
+import { upscaleImage } from '@/utils/imageUpscaler';
+import { loadImage } from '@/utils/backgroundRemover';
 
 const UpscalerPage = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -21,19 +23,34 @@ const UpscalerPage = () => {
     setResultImage(null);
   };
   
-  const handleUpscale = () => {
-    if (!file) return;
+  const handleUpscale = async () => {
+    if (!file || !imageUrl) {
+      toast.error('Please upload an image first');
+      return;
+    }
     
     setIsProcessing(true);
     
-    // Mock upscaling processing delay
-    setTimeout(() => {
-      // For demo purposes, we're just using the same image as result
-      // In a real implementation, this would use an AI-based upscaling API or library
-      setResultImage(imageUrl);
-      setIsProcessing(false);
+    try {
+      const image = await loadImage(file);
+      
+      // Convert factor string to number (2x → 2)
+      const factor = parseInt(upscaleFactor.replace('x', ''));
+      
+      // Process the image to upscale
+      const processedImageBlob = await upscaleImage(image, factor);
+      
+      // Create URL for the processed image
+      const processedImageUrl = URL.createObjectURL(processedImageBlob);
+      setResultImage(processedImageUrl);
+      
       toast.success(`Image upscaled to ${upscaleFactor} successfully!`);
-    }, 1500);
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Failed to upscale image. Please try another image.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
   
   const handleDownload = () => {

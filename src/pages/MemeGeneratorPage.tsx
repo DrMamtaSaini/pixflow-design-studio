@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import ImageUploader from '@/components/ImageUploader';
 import { Button } from '@/components/ui/button';
@@ -34,6 +34,7 @@ const MemeGeneratorPage = () => {
   const [strokeWidth, setStrokeWidth] = useState<number>(2);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
   
   const handleTemplateSelect = (templateId: string) => {
     const template = memeTemplates.find(t => t.id === templateId);
@@ -42,6 +43,12 @@ const MemeGeneratorPage = () => {
       setImageUrl(template.url);
       setCustomFile(null);
       setCustomImageUrl(null);
+      
+      // Pre-load the image
+      if (!imageRef.current) {
+        imageRef.current = new Image();
+      }
+      imageRef.current.src = template.url;
     }
   };
   
@@ -50,74 +57,109 @@ const MemeGeneratorPage = () => {
     setCustomImageUrl(imageUrl);
     setImageUrl(imageUrl);
     setSelectedTemplate(null);
+    
+    // Pre-load the image
+    if (!imageRef.current) {
+      imageRef.current = new Image();
+    }
+    imageRef.current.src = imageUrl;
   };
   
   const generateMeme = () => {
-    if (!imageUrl || !canvasRef.current) return;
+    if (!imageUrl || !canvasRef.current) {
+      toast.error('Please select a template or upload an image first');
+      return;
+    }
     
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
-    // Load the image
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      // Set canvas dimensions to match image
-      canvas.width = img.width;
-      canvas.height = img.height;
-      
-      // Draw the image on the canvas
-      ctx.drawImage(img, 0, 0);
-      
-      // Configure text settings
-      ctx.font = `${fontSize}px ${fontFamily}`;
-      ctx.textAlign = 'center';
-      ctx.fillStyle = textColor;
-      ctx.strokeStyle = strokeColor;
-      ctx.lineWidth = strokeWidth;
-      
-      // Draw top text
-      if (topText) {
-        const x = canvas.width / 2;
-        const y = fontSize + 10;
-        ctx.fillText(topText, x, y);
-        ctx.strokeText(topText, x, y);
-      }
-      
-      // Draw bottom text
-      if (bottomText) {
-        const x = canvas.width / 2;
-        const y = canvas.height - 20;
-        ctx.fillText(bottomText, x, y);
-        ctx.strokeText(bottomText, x, y);
-      }
-      
-      toast.success('Meme generated successfully!');
-    };
+    // Use the current image reference or create a new one
+    const img = imageRef.current || new Image();
+    if (!imageRef.current) {
+      img.crossOrigin = 'anonymous';
+      img.src = imageUrl;
+      imageRef.current = img;
+    }
     
-    img.onerror = () => {
-      toast.error('Error loading image. Please try a different image or template.');
-    };
+    // Make sure image is loaded before drawing
+    if (img.complete) {
+      drawMeme(img, ctx, canvas);
+    } else {
+      img.onload = () => drawMeme(img, ctx, canvas);
+      img.onerror = () => {
+        toast.error('Error loading image. Please try a different image or template.');
+      };
+    }
+  };
+  
+  const drawMeme = (img: HTMLImageElement, ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) => {
+    // Set canvas dimensions to match image
+    canvas.width = img.width;
+    canvas.height = img.height;
     
-    img.src = imageUrl;
+    // Draw the image on the canvas
+    ctx.drawImage(img, 0, 0);
+    
+    // Configure text settings
+    ctx.font = `${fontSize}px ${fontFamily}`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = textColor;
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = strokeWidth;
+    
+    // Draw top text
+    if (topText) {
+      const x = canvas.width / 2;
+      const y = fontSize + 10;
+      ctx.fillText(topText, x, y);
+      ctx.strokeText(topText, x, y);
+    }
+    
+    // Draw bottom text
+    if (bottomText) {
+      const x = canvas.width / 2;
+      const y = canvas.height - 20;
+      ctx.fillText(bottomText, x, y);
+      ctx.strokeText(bottomText, x, y);
+    }
+    
+    toast.success('Meme generated successfully!');
   };
   
   const handleDownload = () => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current) {
+      toast.error('No meme generated yet');
+      return;
+    }
     
-    // Convert canvas to PNG
-    const dataUrl = canvasRef.current.toDataURL('image/png');
-    
-    // Create download link
-    const a = document.createElement('a');
-    a.href = dataUrl;
-    a.download = 'meme.png';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    
-    toast.success('Meme downloaded successfully!');
+    // Check if canvas has content
+    const canvas = canvasRef.current;
+    try {
+      // Get a sample pixel to check if canvas has content
+      const pixel = canvas.getContext('2d')?.getImageData(1, 1, 1, 1);
+      if (!pixel || !pixel.data[3]) { // Check alpha value
+        toast.error('Please generate a meme first');
+        return;
+      }
+      
+      // Convert canvas to PNG
+      const dataUrl = canvas.toDataURL('image/png');
+      
+      // Create download link
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = 'meme.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      toast.success('Meme downloaded successfully!');
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('Failed to download. Please generate a meme first.');
+    }
   };
   
   const handleReset = () => {
@@ -141,8 +183,21 @@ const MemeGeneratorPage = () => {
       }
     }
     
+    imageRef.current = null;
+    
     toast.info('Reset successful');
   };
+  
+  // Auto-generate meme when parameters change
+  useEffect(() => {
+    if (imageUrl && (topText || bottomText)) {
+      const debounceTimer = setTimeout(() => {
+        generateMeme();
+      }, 500);
+      
+      return () => clearTimeout(debounceTimer);
+    }
+  }, [imageUrl, topText, bottomText, fontFamily, fontSize, textColor, strokeColor, strokeWidth]);
   
   return (
     <Layout title="Meme Generator" showBackButton>
