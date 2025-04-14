@@ -8,11 +8,12 @@ const REMOVE_BG_API_URL = "https://api.remove.bg/v1.0/removebg";
 export const removeBackground = async (imageElement: HTMLImageElement): Promise<Blob> => {
   try {
     console.log('Starting background removal with Remove.bg API...');
+    console.log('API key available:', API_KEY ? 'Yes' : 'No'); // Debug log
     
     // Check if API key is available
     if (!API_KEY) {
       console.error('Remove.bg API key is missing. Please set the VITE_REMOVE_BG_API_KEY environment variable.');
-      toast.error('API key is missing. Please check your environment configuration.');
+      toast.error('API key missing. Add VITE_REMOVE_BG_API_KEY to your .env file and restart the server.');
       throw new Error('Remove.bg API key is missing. Please set the VITE_REMOVE_BG_API_KEY environment variable.');
     }
     
