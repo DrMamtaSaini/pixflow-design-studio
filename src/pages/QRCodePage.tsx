@@ -1,5 +1,4 @@
-
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,8 +7,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Card } from '@/components/ui/card';
-import { Download, Trash, Globe, AlignLeft, MessageSquare, Phone } from 'lucide-react';
+import { Download, Trash, Globe, AlignLeft, MessageSquare, Phone, QrCode } from 'lucide-react';
 import { toast } from 'sonner';
+import QRCode from 'qrcode';
 
 type ContentType = 'url' | 'text' | 'sms' | 'phone';
 
@@ -21,14 +21,16 @@ interface QRContent {
 }
 
 const QRCodePage = () => {
-  const [qrContent, setQrContent] = useState<QRContent>({ type: 'url', value: '' });
+  const [qrContent, setQrContent] = useState<QRContent>({ type: 'url', value: 'https://' });
   const [foregroundColor, setForegroundColor] = useState<string>('#000000');
   const [backgroundColor, setBackgroundColor] = useState<string>('#ffffff');
   const [margin, setMargin] = useState<number>(20);
   const [size, setSize] = useState<number>(200);
-  const [showQR, setShowQR] = useState<boolean>(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [svgCode, setSvgCode] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
   
-  const qrContainerRef = useRef<HTMLDivElement>(null);
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null);
   
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (qrContent.type === 'url') {
@@ -78,10 +80,11 @@ const QRCodePage = () => {
     }
     
     setQrContent(newContent);
-    setShowQR(false);
+    setQrDataUrl(null);
+    setSvgCode(null);
   };
   
-  const generateQRCode = () => {
+  const generateQRCode = async () => {
     let isEmpty = false;
     
     switch (qrContent.type) {
@@ -104,14 +107,62 @@ const QRCodePage = () => {
       return;
     }
     
-    // Mock QR code generation
-    // In a real implementation, this would use a QR code generation library
-    setShowQR(true);
-    toast.success('QR code generated successfully!');
+    setIsGenerating(true);
+    
+    try {
+      // Generate QR code as Data URL (PNG)
+      const dataUrl = await QRCode.toDataURL(qrContent.value, {
+        width: size,
+        margin: margin / 100,
+        color: {
+          dark: foregroundColor,
+          light: backgroundColor
+        }
+      });
+      setQrDataUrl(dataUrl);
+      
+      // Also generate SVG version
+      const svgString = await QRCode.toString(qrContent.value, {
+        type: 'svg',
+        width: size,
+        margin: margin / 100,
+        color: {
+          dark: foregroundColor,
+          light: backgroundColor
+        }
+      });
+      setSvgCode(svgString);
+      
+      toast.success('QR code generated successfully!');
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      toast.error('Failed to generate QR code. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
   };
   
   const handleDownload = (format: 'png' | 'svg') => {
-    toast.success(`QR code downloaded as ${format.toUpperCase()}`);
+    if (format === 'png' && qrDataUrl) {
+      const link = document.createElement('a');
+      link.href = qrDataUrl;
+      link.download = 'qrcode.png';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success('QR code downloaded as PNG');
+    } else if (format === 'svg' && svgCode) {
+      const blob = new Blob([svgCode], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'qrcode.svg';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success('QR code downloaded as SVG');
+    }
   };
   
   const handleReset = () => {
@@ -120,7 +171,8 @@ const QRCodePage = () => {
     setBackgroundColor('#ffffff');
     setMargin(20);
     setSize(200);
-    setShowQR(false);
+    setQrDataUrl(null);
+    setSvgCode(null);
     toast.info('Reset successful');
   };
   
@@ -281,8 +333,17 @@ const QRCodePage = () => {
             </div>
           </Card>
           
-          <Button onClick={generateQRCode} className="w-full">
-            Generate QR Code
+          <Button 
+            onClick={generateQRCode} 
+            className="w-full"
+            disabled={isGenerating}
+          >
+            {isGenerating ? 'Generating...' : (
+              <>
+                <QrCode className="h-4 w-4 mr-2" />
+                Generate QR Code
+              </>
+            )}
           </Button>
         </div>
         
@@ -290,51 +351,30 @@ const QRCodePage = () => {
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Preview</h2>
             <div 
-              ref={qrContainerRef}
               className="border rounded-lg flex items-center justify-center p-8"
               style={{ 
                 backgroundColor: backgroundColor,
                 minHeight: '300px'
               }}
             >
-              {showQR ? (
-                <div 
+              {qrDataUrl ? (
+                <img 
+                  src={qrDataUrl} 
+                  alt="Generated QR Code"
                   style={{ 
-                    width: `${size}px`, 
-                    height: `${size}px`,
-                    padding: `${margin}px`,
-                    backgroundColor: backgroundColor,
-                    position: 'relative'
+                    maxWidth: '100%',
+                    maxHeight: '300px'
                   }}
-                >
-                  {/* This is a placeholder for the QR code */}
-                  {/* In a real implementation, this would be replaced with an actual QR code */}
-                  <div 
-                    style={{ 
-                      backgroundColor: foregroundColor,
-                      width: '100%',
-                      height: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: backgroundColor,
-                      fontSize: '14px',
-                      textAlign: 'center',
-                      padding: '10px'
-                    }}
-                  >
-                    QR Code for:<br/>
-                    {qrContent.value}
-                  </div>
-                </div>
+                />
               ) : (
                 <div className="text-center text-muted-foreground">
+                  <QrCode size={64} className="mx-auto mb-4 opacity-20" />
                   <p>Your QR code will appear here</p>
                 </div>
               )}
             </div>
             
-            {showQR && (
+            {qrDataUrl && (
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row gap-4">
                   <Button 
@@ -368,6 +408,8 @@ const QRCodePage = () => {
           </div>
         </div>
       </div>
+      
+      <canvas ref={qrCanvasRef} style={{ display: 'none' }} />
     </Layout>
   );
 };
