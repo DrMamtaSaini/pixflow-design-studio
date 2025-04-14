@@ -69,7 +69,7 @@ export const removeBackground = async (imageElement: HTMLImageElement): Promise<
     // Process the image with the segmentation model
     console.log('Processing with segmentation model...');
     const result = await segmenter(imageData, {
-      threshold: 0.1 // Lower threshold to catch more of the subject
+      threshold: 0.05 // Lower threshold to catch more of the subject
     });
     
     console.log('Segmentation result:', result);
@@ -83,7 +83,7 @@ export const removeBackground = async (imageElement: HTMLImageElement): Promise<
     const maskArray = new Uint8ClampedArray(canvas.width * canvas.height).fill(0);
     
     // Combine masks from multiple relevant classes to create a comprehensive foreground mask
-    const relevantClasses = ['person', 'car', 'animal', 'chair', 'table', 'sofa', 'bed', 'plant'];
+    const relevantClasses = ['person', 'car', 'animal', 'chair', 'table', 'sofa', 'bed', 'plant', 'clothing'];
     
     // For each segmentation result, check if it's a relevant class or has significant mask data
     for (const segment of result) {
@@ -97,7 +97,7 @@ export const removeBackground = async (imageElement: HTMLImageElement): Promise<
         // For each pixel in the mask
         for (let i = 0; i < segment.mask.data.length; i++) {
           // If the confidence is above threshold, mark as foreground
-          if (segment.mask.data[i] > 0.3) {
+          if (segment.mask.data[i] > 0.2) {
             maskArray[i] = 255; // Mark as foreground (255 = white)
           }
         }
@@ -143,15 +143,53 @@ export const removeBackground = async (imageElement: HTMLImageElement): Promise<
     
     // Apply morphological operations to improve the mask
     // First, let's dilate the mask slightly to ensure we capture all of the subject
-    maskCtx.filter = 'blur(3px)';
+    maskCtx.filter = 'blur(5px)'; // Increased blur radius for better edge handling
     maskCtx.drawImage(maskCanvas, 0, 0);
+    
+    // Apply a threshold to the blurred mask to create a sharper edge
+    const blurredData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+    const blurredPixels = blurredData.data;
+    
+    for (let i = 0; i < blurredPixels.length; i += 4) {
+      // If any opacity at all, make it fully opaque
+      // This helps eliminate partial transparency at edges which can cause dark artifacts
+      if (blurredPixels[i + 3] > 10) {
+        blurredPixels[i + 3] = 255;
+      }
+    }
+    
+    maskCtx.putImageData(blurredData, 0, 0);
     
     // Reset filter
     maskCtx.filter = 'none';
     
-    // Now, apply the mask to the original image using composite operations
+    // Create another canvas for a refined mask with smoother edges
+    const refinedMaskCanvas = document.createElement('canvas');
+    refinedMaskCanvas.width = canvas.width;
+    refinedMaskCanvas.height = canvas.height;
+    const refinedMaskCtx = refinedMaskCanvas.getContext('2d', { willReadFrequently: true });
+    
+    if (!refinedMaskCtx) throw new Error('Could not get refined mask canvas context');
+    
+    // Draw the mask to the refined canvas with a slight blur for smoother edges
+    refinedMaskCtx.filter = 'blur(2px)';
+    refinedMaskCtx.drawImage(maskCanvas, 0, 0);
+    refinedMaskCtx.filter = 'none';
+    
+    // Apply a second threshold operation to clean up any remaining partial transparency
+    const refinedData = refinedMaskCtx.getImageData(0, 0, refinedMaskCanvas.width, refinedMaskCanvas.height);
+    const refinedPixels = refinedData.data;
+    
+    for (let i = 0; i < refinedPixels.length; i += 4) {
+      // Threshold again to make mask binary (either fully transparent or fully opaque)
+      refinedPixels[i + 3] = refinedPixels[i + 3] > 128 ? 255 : 0;
+    }
+    
+    refinedMaskCtx.putImageData(refinedData, 0, 0);
+    
+    // Now, apply the refined mask to the original image using composite operations
     outputCtx.globalCompositeOperation = 'destination-in';
-    outputCtx.drawImage(maskCanvas, 0, 0);
+    outputCtx.drawImage(refinedMaskCanvas, 0, 0);
     
     // Reset composite operation
     outputCtx.globalCompositeOperation = 'source-over';

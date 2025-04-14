@@ -58,7 +58,7 @@ const BackgroundRemoverPage = () => {
       toast.success('Background removed successfully!');
     } catch (error) {
       console.error('Error:', error);
-      toast.error('Failed to remove background. Please try a clearer image with a well-defined subject, or check browser compatibility.');
+      toast.error('Failed to remove background. Please try a different image with a clearer subject.');
     } finally {
       toast.dismiss(toastId);
       setIsProcessing(false);
@@ -107,8 +107,9 @@ const BackgroundRemoverPage = () => {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Background removal uses AI segmentation</AlertTitle>
           <AlertDescription>
-            For best results, use images with clear subjects and distinct backgrounds. The AI model works better with 
-            common objects like people, animals, and products.
+            For best results, use images with clear subjects against contrasting backgrounds. 
+            The AI works best with photos of people, products, or animals with simple backgrounds.
+            Some complex edges or hair details may require professional editing software for perfect results.
           </AlertDescription>
         </Alert>
         
@@ -131,7 +132,7 @@ const BackgroundRemoverPage = () => {
                       <li>WebAssembly</li>
                     </ul>
                     <p className="text-sm text-muted-foreground mt-2">
-                      For best results, use images with a clear subject and contrasting background.
+                      For best results, use high-quality images with good lighting and a clear subject.
                     </p>
                   </PopoverContent>
                 </Popover>
