@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import ImageUploader from '@/components/ImageUploader';
@@ -85,10 +86,10 @@ const OCRPage = () => {
       await worker.loadLanguage(language);
       await worker.initialize(language);
       
+      // Update parameters to only use officially supported properties
       await worker.setParameters({
         tessedit_pageseg_mode: PSM.AUTO,
         tessedit_char_whitelist: '',
-        tessedit_ocr_engine_mode: 2,
         preserve_interword_spaces: '1',
       });
       
