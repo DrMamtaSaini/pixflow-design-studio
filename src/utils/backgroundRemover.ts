@@ -1,3 +1,4 @@
+
 import { pipeline, env } from '@huggingface/transformers';
 import { toast } from 'sonner';
 
@@ -75,40 +76,65 @@ export const removeBackground = async (imageElement: HTMLImageElement): Promise<
       throw new Error('Invalid segmentation result');
     }
     
-    // Create a new canvas for the masked image
+    // Instead of manipulating the pixels directly, we'll use a more reliable approach 
+    // with separate canvases for the image and mask
+    
+    // Create a new canvas for the final output
     const outputCanvas = document.createElement('canvas');
     outputCanvas.width = canvas.width;
     outputCanvas.height = canvas.height;
-    const outputCtx = outputCanvas.getContext('2d');
+    const outputCtx = outputCanvas.getContext('2d', { willReadFrequently: true });
     
     if (!outputCtx) throw new Error('Could not get output canvas context');
     
-    // Draw original image
-    outputCtx.drawImage(canvas, 0, 0);
+    // Create a temporary canvas for the mask
+    const maskCanvas = document.createElement('canvas');
+    maskCanvas.width = canvas.width;
+    maskCanvas.height = canvas.height;
+    const maskCtx = maskCanvas.getContext('2d', { willReadFrequently: true });
     
-    // Apply the mask
-    const outputImageData = outputCtx.getImageData(
-      0, 0,
-      outputCanvas.width,
-      outputCanvas.height
-    );
-    const data = outputImageData.data;
+    if (!maskCtx) throw new Error('Could not get mask canvas context');
     
-    // Apply inverted mask to alpha channel
+    // Create mask image data
+    const maskImgData = maskCtx.createImageData(maskCanvas.width, maskCanvas.height);
+    const maskData = maskImgData.data;
+    
+    // Apply mask to alpha channel
     const maskLength = result[0].mask.data.length;
-    const dataLength = data.length / 4; // RGBA pixels
+    const dataLength = maskData.length / 4; // RGBA pixels
     
     // Make sure we don't exceed array bounds
     const minLength = Math.min(maskLength, dataLength);
     
+    // Create binary mask with solid values (either fully transparent or fully opaque)
     for (let i = 0; i < minLength; i++) {
-      // Invert the mask value (1 - value) to keep the subject instead of the background
-      const alpha = Math.round((1 - result[0].mask.data[i]) * 255);
-      data[i * 4 + 3] = alpha;
+      const maskValue = result[0].mask.data[i];
+      // Use threshold of 0.5 to make it a binary mask
+      const alpha = maskValue < 0.5 ? 255 : 0; // Invert so foreground is kept
+      
+      const idx = i * 4;
+      // Set RGB to white (doesn't matter, only alpha is important)
+      maskData[idx] = 255;
+      maskData[idx + 1] = 255;
+      maskData[idx + 2] = 255;
+      // Set alpha based on mask
+      maskData[idx + 3] = alpha;
     }
     
-    outputCtx.putImageData(outputImageData, 0, 0);
-    console.log('Mask applied successfully');
+    // Put the mask image data on the mask canvas
+    maskCtx.putImageData(maskImgData, 0, 0);
+    
+    // First draw the original image
+    outputCtx.drawImage(canvas, 0, 0);
+    
+    // Then apply the mask using globalCompositeOperation
+    outputCtx.globalCompositeOperation = 'destination-in';
+    outputCtx.drawImage(maskCanvas, 0, 0);
+    
+    // Reset composite operation
+    outputCtx.globalCompositeOperation = 'source-over';
+    
+    console.log('Mask applied successfully using composite operations');
     
     // Convert canvas to blob
     return new Promise((resolve, reject) => {

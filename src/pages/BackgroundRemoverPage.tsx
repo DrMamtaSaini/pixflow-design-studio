@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Slider } from '@/components/ui/slider';
-import { Download, Trash, ImageIcon, Grid2X2 } from 'lucide-react';
+import { Download, Trash, ImageIcon, Grid2X2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { removeBackground, loadImage } from '@/utils/backgroundRemover';
 import { 
@@ -37,7 +37,7 @@ const BackgroundRemoverPage = () => {
     }
     
     setIsProcessing(true);
-    toast.info('Processing image, this may take a moment...', { duration: 10000 });
+    const toastId = toast.loading('Processing image, this may take a moment...', { duration: 60000 });
     
     try {
       // Load the image
@@ -53,8 +53,9 @@ const BackgroundRemoverPage = () => {
       toast.success('Background removed successfully!');
     } catch (error) {
       console.error('Error:', error);
-      toast.error('Failed to remove background. Please try another image or check if your browser supports WebGPU or WebAssembly.');
+      toast.error('Failed to remove background. Please try a clearer image with a well-defined subject, or check browser compatibility.');
     } finally {
+      toast.dismiss(toastId);
       setIsProcessing(false);
     }
   };
@@ -115,6 +116,9 @@ const BackgroundRemoverPage = () => {
                       <li>WebGPU (Chrome 113+, Edge 113+, or Safari 17+)</li>
                       <li>WebAssembly</li>
                     </ul>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      For best results, use images with a clear subject and contrasting background.
+                    </p>
                   </PopoverContent>
                 </Popover>
               </div>
@@ -126,7 +130,14 @@ const BackgroundRemoverPage = () => {
                   disabled={isProcessing}
                   className="w-full"
                 >
-                  {isProcessing ? 'Processing...' : 'Remove Background'}
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    'Remove Background'
+                  )}
                 </Button>
               )}
             </div>
