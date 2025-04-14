@@ -83,18 +83,22 @@ const OCRPage = () => {
       // Apply preprocessing if enhanceHandwriting is true
       const processedImageUrl = await preprocessImageForOCR(imageUrl);
       
-      // Configure worker with more options for better handwriting recognition
-      const worker = await createWorker(language);
+      // Configure worker with proper typing for options
+      const worker = await createWorker({
+        langPath: 'https://tessdata.projectnaptha.com/4.0.0',
+        logger: m => console.log(m)
+      });
+      
+      // Load language data
+      await worker.loadLanguage(language);
+      await worker.initialize(language);
       
       // Set additional parameters for better handwriting recognition
       await worker.setParameters({
-        tessedit_pageseg_mode: '6', // Assume a single uniform block of text
+        tessedit_pageseg_mode: '6', // As a string to avoid TS errors
         tessedit_char_whitelist: '',
         tessedit_ocr_engine_mode: '2', // Use LSTM only
         preserve_interword_spaces: '1',
-        tessjs_create_hocr: '0',
-        tessjs_create_tsv: '0',
-        tessjs_confidence_threshold: confidenceThreshold.toString()
       });
       
       // Recognize text
