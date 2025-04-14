@@ -41,7 +41,7 @@ const BackgroundRemoverPage = () => {
     }
     
     setIsProcessing(true);
-    const toastId = toast.loading('Processing image, this may take up to 30 seconds...', { duration: 60000 });
+    const toastId = toast.loading('Processing image with Remove.bg API...', { duration: 60000 });
     
     try {
       const image = await loadImage(file);
@@ -52,7 +52,7 @@ const BackgroundRemoverPage = () => {
       toast.success('Background removed successfully!');
     } catch (error) {
       console.error('Error:', error);
-      toast.error('Failed to remove background. Please try a different image with a clearer subject.');
+      toast.error('Failed to remove background. Please try a different image or try again later.');
     } finally {
       toast.dismiss(toastId);
       setIsProcessing(false);
@@ -99,21 +99,20 @@ const BackgroundRemoverPage = () => {
       <div className="space-y-8">
         <Alert variant="default" className="mb-6">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Background removal uses AI segmentation</AlertTitle>
+          <AlertTitle>Professional Background Removal</AlertTitle>
           <AlertDescription>
-            For best results, use images with clear subjects against contrasting backgrounds. 
-            The AI works best with photos of people, products, or animals with simple backgrounds.
-            Some complex edges or hair details may require professional editing software for perfect results.
+            This tool uses the Remove.bg API to professionally remove backgrounds from your images.
+            Upload any image with a clear subject, and the service will automatically remove the background.
+            Works best with people, products, animals, cars, and other common subjects.
           </AlertDescription>
         </Alert>
         
         {resultImage && (
           <Alert variant="default" className="mb-6 bg-green-50 border-green-200">
             <Info className="h-4 w-4 text-green-600" />
-            <AlertTitle className="text-green-700">If you see any dark edges around the subject</AlertTitle>
+            <AlertTitle className="text-green-700">Background removed successfully</AlertTitle>
             <AlertDescription className="text-green-600">
-              Try clicking the "Remove Background" button again. Each attempt may produce slightly different results as the AI 
-              processing adapts to the specific image characteristics.
+              Your image has been processed using Remove.bg API. You can now customize the background or download the result.
             </AlertDescription>
           </Alert>
         )}
