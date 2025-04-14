@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import ImageUploader from '@/components/ImageUploader';
@@ -7,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Copy, Download, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { createWorker } from 'tesseract.js';
+import { createWorker, PSM } from 'tesseract.js';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -20,7 +19,6 @@ const OCRPage = () => {
   const [language, setLanguage] = useState<string>('hin');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   
-  // Advanced OCR settings
   const [enhanceHandwriting, setEnhanceHandwriting] = useState<boolean>(true);
   const [confidenceThreshold, setConfidenceThreshold] = useState<number>(60);
   
@@ -46,21 +44,18 @@ const OCRPage = () => {
         canvas.width = img.width;
         canvas.height = img.height;
         
-        // Draw original image
         ctx.drawImage(img, 0, 0);
         
-        // Apply basic preprocessing for handwritten text
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imageData.data;
         
-        // Increase contrast and apply binarization for better OCR
         for (let i = 0; i < data.length; i += 4) {
           const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-          const newVal = avg > 150 ? 255 : 0; // Simple threshold
+          const newVal = avg > 150 ? 255 : 0;
           
-          data[i] = newVal;     // R
-          data[i + 1] = newVal; // G
-          data[i + 2] = newVal; // B
+          data[i] = newVal;
+          data[i + 1] = newVal;
+          data[i + 2] = newVal;
         }
         
         ctx.putImageData(imageData, 0, 0);
@@ -80,33 +75,26 @@ const OCRPage = () => {
     setIsProcessing(true);
     
     try {
-      // Apply preprocessing if enhanceHandwriting is true
       const processedImageUrl = await preprocessImageForOCR(imageUrl);
       
-      // Configure worker with proper typing for options
       const worker = await createWorker({
         langPath: 'https://tessdata.projectnaptha.com/4.0.0',
         logger: m => console.log(m)
       });
       
-      // Load language data
       await worker.loadLanguage(language);
       await worker.initialize(language);
       
-      // Set additional parameters for better handwriting recognition
-      // Using type assertions to satisfy TypeScript
       await worker.setParameters({
-        tessedit_pageseg_mode: 6, // Use number instead of string
+        tessedit_pageseg_mode: PSM.AUTO,
         tessedit_char_whitelist: '',
-        tessedit_ocr_engine_mode: 2, // Use number instead of string
+        tessedit_ocr_engine_mode: 2,
         preserve_interword_spaces: '1',
       });
       
-      // Recognize text
       const result = await worker.recognize(processedImageUrl);
       setExtractedText(result.data.text);
       
-      // Clean up
       await worker.terminate();
       toast.success('Text extracted successfully!');
     } catch (error) {
