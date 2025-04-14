@@ -1,13 +1,20 @@
 
 import { toast } from 'sonner';
 
-// Use the API key directly since environment variable setup is causing issues
-const API_KEY = "dJp25Nf5w9eZd5yh92xajEJH";
+// Use environment variable
+const API_KEY = import.meta.env.VITE_REMOVE_BG_API_KEY;
 const REMOVE_BG_API_URL = "https://api.remove.bg/v1.0/removebg";
 
 export const removeBackground = async (imageElement: HTMLImageElement): Promise<Blob> => {
   try {
     console.log('Starting background removal with Remove.bg API...');
+    
+    // Check if API key is available
+    if (!API_KEY) {
+      console.error('Remove.bg API key is missing. Please set the VITE_REMOVE_BG_API_KEY environment variable.');
+      toast.error('API key is missing. Please check your environment configuration.');
+      throw new Error('Remove.bg API key is missing. Please set the VITE_REMOVE_BG_API_KEY environment variable.');
+    }
     
     // Convert the image to a blob
     const canvas = document.createElement('canvas');
