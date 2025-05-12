@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
@@ -67,6 +68,23 @@ const Layout: React.FC<LayoutProps> = ({
       document.body.removeChild(optionsScript);
       if (document.body.contains(invokeScript)) {
         document.body.removeChild(invokeScript);
+      }
+    };
+  }, []);
+
+  // Effect to initialize the native ad
+  useEffect(() => {
+    // Create script element for native ad
+    const nativeAdScript = document.createElement('script');
+    nativeAdScript.async = true;
+    nativeAdScript.setAttribute('data-cfasync', 'false');
+    nativeAdScript.src = '//pl26624184.profitableratecpm.com/e09cd0a3172cf39543d01adb9ed3c6d4/invoke.js';
+    document.body.appendChild(nativeAdScript);
+
+    // Cleanup function to remove script when component unmounts
+    return () => {
+      if (document.body.contains(nativeAdScript)) {
+        document.body.removeChild(nativeAdScript);
       }
     };
   }, []);
@@ -203,7 +221,12 @@ const Layout: React.FC<LayoutProps> = ({
         )}
       </main>
       
-      {/* Ad Banner */}
+      {/* Native Ad */}
+      <div className="w-full flex justify-center py-4 bg-background">
+        <div id="container-e09cd0a3172cf39543d01adb9ed3c6d4"></div>
+      </div>
+      
+      {/* Banner Ad */}
       <div id="adthis-banner" className="w-full flex justify-center py-4 bg-background">
         <div id="addthis-container"></div>
       </div>
