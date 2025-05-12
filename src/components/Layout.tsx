@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   FileText, 
@@ -40,6 +39,37 @@ const Layout: React.FC<LayoutProps> = ({
   const closeMenu = () => {
     setIsMenuOpen(false);
   };
+
+  // Effect to initialize the AddThis banner ad
+  useEffect(() => {
+    // Create script element for options
+    const optionsScript = document.createElement('script');
+    optionsScript.type = 'text/javascript';
+    optionsScript.text = `
+      atOptions = {
+        'key' : '6f36f44268be6594be2491cac9308ff0',
+        'format' : 'iframe',
+        'height' : 90,
+        'width' : 728,
+        'params' : {}
+      };
+    `;
+    document.body.appendChild(optionsScript);
+
+    // Create script element for invoke.js
+    const invokeScript = document.createElement('script');
+    invokeScript.type = 'text/javascript';
+    invokeScript.src = '//www.highperformanceformat.com/6f36f44268be6594be2491cac9308ff0/invoke.js';
+    document.body.appendChild(invokeScript);
+
+    // Cleanup function to remove scripts when component unmounts
+    return () => {
+      document.body.removeChild(optionsScript);
+      if (document.body.contains(invokeScript)) {
+        document.body.removeChild(invokeScript);
+      }
+    };
+  }, []);
 
   const navigationLinks = [
     { 
@@ -172,6 +202,11 @@ const Layout: React.FC<LayoutProps> = ({
           </div>
         )}
       </main>
+      
+      {/* Ad Banner */}
+      <div id="adthis-banner" className="w-full flex justify-center py-4 bg-background">
+        <div id="addthis-container"></div>
+      </div>
       
       {/* Footer */}
       <footer className="border-t py-6 bg-muted/40">
