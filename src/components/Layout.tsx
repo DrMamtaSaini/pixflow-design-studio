@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   FileText, 
@@ -29,9 +29,7 @@ const Layout: React.FC<LayoutProps> = ({
 }) => {
   const location = useLocation();
   const isMobile = useIsMobile();
-  const [isMenuOpen, setIsMenuOpen] = React.useState(false);
-  const nativeAdContainerRef = useRef<HTMLDivElement>(null);
-  const bannerAdContainerRef = useRef<HTMLDivElement>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const isHome = location.pathname === '/';
 
@@ -42,102 +40,6 @@ const Layout: React.FC<LayoutProps> = ({
   const closeMenu = () => {
     setIsMenuOpen(false);
   };
-
-  // Effect to add Google AdSense script
-  useEffect(() => {
-    // Check if script already exists to prevent duplicates
-    if (!document.querySelector('script[src*="adsbygoogle"]')) {
-      const adsenseScript = document.createElement('script');
-      adsenseScript.async = true;
-      adsenseScript.crossOrigin = 'anonymous';
-      adsenseScript.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7673358241410118';
-      document.head.appendChild(adsenseScript);
-      
-      // Push an initial ad if needed
-      window.adsbygoogle = window.adsbygoogle || [];
-      window.adsbygoogle.push({});
-
-      // Cleanup function to remove script when component unmounts
-      return () => {
-        if (document.head.contains(adsenseScript)) {
-          document.head.removeChild(adsenseScript);
-        }
-      };
-    }
-  }, []);
-
-  // Effect to initialize the AddThis banner ad
-  useEffect(() => {
-    if (!document.querySelector('script[data-banner-ad="true"]') && bannerAdContainerRef.current) {
-      // Clear previous content
-      while (bannerAdContainerRef.current.firstChild) {
-        bannerAdContainerRef.current.removeChild(bannerAdContainerRef.current.firstChild);
-      }
-      
-      // Create script element for options
-      const optionsScript = document.createElement('script');
-      optionsScript.type = 'text/javascript';
-      optionsScript.setAttribute('data-banner-ad', 'true');
-      optionsScript.text = `
-        atOptions = {
-          'key' : '6f36f44268be6594be2491cac9308ff0',
-          'format' : 'iframe',
-          'height' : 90,
-          'width' : 728,
-          'params' : {}
-        };
-      `;
-      bannerAdContainerRef.current.appendChild(optionsScript);
-
-      // Create script element for invoke.js
-      const invokeScript = document.createElement('script');
-      invokeScript.type = 'text/javascript';
-      invokeScript.setAttribute('data-banner-ad', 'true');
-      invokeScript.src = '//www.highperformanceformat.com/6f36f44268be6594be2491cac9308ff0/invoke.js';
-      bannerAdContainerRef.current.appendChild(invokeScript);
-
-      return () => {
-        if (bannerAdContainerRef.current) {
-          while (bannerAdContainerRef.current.firstChild) {
-            bannerAdContainerRef.current.removeChild(bannerAdContainerRef.current.firstChild);
-          }
-        }
-      };
-    }
-  }, [bannerAdContainerRef.current]);
-
-  // Effect to initialize the native ad
-  useEffect(() => {
-    if (!document.querySelector('script[data-native-ad="true"]') && nativeAdContainerRef.current) {
-      // Clear any existing content
-      while (nativeAdContainerRef.current.firstChild) {
-        nativeAdContainerRef.current.removeChild(nativeAdContainerRef.current.firstChild);
-      }
-      
-      // Create the container div if it doesn't exist
-      if (!document.getElementById('container-e09cd0a3172cf39543d01adb9ed3c6d4')) {
-        const containerDiv = document.createElement('div');
-        containerDiv.id = 'container-e09cd0a3172cf39543d01adb9ed3c6d4';
-        nativeAdContainerRef.current.appendChild(containerDiv);
-      }
-      
-      // Create script element for native ad
-      const nativeAdScript = document.createElement('script');
-      nativeAdScript.async = true;
-      nativeAdScript.setAttribute('data-cfasync', 'false');
-      nativeAdScript.setAttribute('data-native-ad', 'true');
-      nativeAdScript.src = '//pl26624184.profitableratecpm.com/e09cd0a3172cf39543d01adb9ed3c6d4/invoke.js';
-      nativeAdContainerRef.current.appendChild(nativeAdScript);
-
-      return () => {
-        if (nativeAdContainerRef.current) {
-          while (nativeAdContainerRef.current.firstChild) {
-            nativeAdContainerRef.current.removeChild(nativeAdContainerRef.current.firstChild);
-          }
-        }
-      };
-    }
-  }, [nativeAdContainerRef.current]);
 
   const navigationLinks = [
     { 
@@ -270,31 +172,6 @@ const Layout: React.FC<LayoutProps> = ({
           </div>
         )}
       </main>
-      
-      {/* Google AdSense Ad */}
-      <div className="w-full flex justify-center py-4 bg-background">
-        <ins className="adsbygoogle"
-             style={{ display: 'block', width: '100%', height: '90px' }}
-             data-ad-client="ca-pub-7673358241410118"
-             data-ad-slot="1234567890"
-             data-ad-format="auto"
-             data-full-width-responsive="true"></ins>
-        <script>
-          (adsbygoogle = window.adsbygoogle || []).push({});
-        </script>
-      </div>
-      
-      {/* Native Ad */}
-      <div className="w-full flex justify-center py-4 bg-background">
-        <div ref={nativeAdContainerRef} className="ad-container">
-          <div id="container-e09cd0a3172cf39543d01adb9ed3c6d4"></div>
-        </div>
-      </div>
-      
-      {/* Banner Ad */}
-      <div className="w-full flex justify-center py-4 bg-background">
-        <div ref={bannerAdContainerRef} className="ad-container"></div>
-      </div>
       
       {/* Footer */}
       <footer className="border-t py-6 bg-muted/40">
