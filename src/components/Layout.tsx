@@ -41,6 +41,22 @@ const Layout: React.FC<LayoutProps> = ({
     setIsMenuOpen(false);
   };
 
+  // Effect to add Google AdSense script
+  useEffect(() => {
+    const adsenseScript = document.createElement('script');
+    adsenseScript.async = true;
+    adsenseScript.crossOrigin = 'anonymous';
+    adsenseScript.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7673358241410118';
+    document.head.appendChild(adsenseScript);
+
+    // Cleanup function to remove script when component unmounts
+    return () => {
+      if (document.head.contains(adsenseScript)) {
+        document.head.removeChild(adsenseScript);
+      }
+    };
+  }, []);
+
   // Effect to initialize the AddThis banner ad
   useEffect(() => {
     // Create script element for options
